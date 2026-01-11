@@ -1,10 +1,8 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import prisma from '@/lib/prisma'
 import { auth } from '@/auth'
 import { calculateIncomeMetrics } from '@/lib/financials'
-
-const prisma = new PrismaClient()
 
 export async function getDashboardData() {
     const session = await auth()

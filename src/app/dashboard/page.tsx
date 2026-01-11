@@ -26,7 +26,7 @@ export default async function DashboardPage() {
             <div className="max-w-7xl mx-auto space-y-8">
 
                 <header>
-                    <h1 className="text-3xl font-bold text-white">Financial Dashboard</h1>
+                    <h1 className="text-3xl font-bold text-white leading-tight">Financial Dashboard <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full ml-2">Synced v1.1</span></h1>
                     <p className="text-slate-400">Your gravity-less journey at a glance.</p>
                 </header>
 

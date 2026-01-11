@@ -2,6 +2,7 @@
 
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { Card } from '@/components/ui/core'
+import { calculateIncomeMetrics } from '@/lib/financials'
 
 export function CrossoverChart({ incomeSources, monthlyExpense }: { incomeSources: any[], monthlyExpense: number }) {
     // Projection Logic
@@ -11,8 +12,8 @@ export function CrossoverChart({ incomeSources, monthlyExpense }: { incomeSource
     const activeSources = incomeSources.filter(s => s.type !== 'Passive' && s.type !== 'Semi-Passive')
     const passiveSources = incomeSources.filter(s => s.type === 'Passive' || s.type === 'Semi-Passive')
 
-    const currentActive = activeSources.reduce((acc: number, s: any) => acc + s.monthlyIncome, 0)
-    const currentPassive = passiveSources.reduce((acc: number, s: any) => acc + s.monthlyIncome, 0)
+    const currentActive = activeSources.reduce((acc: number, s: any) => acc + calculateIncomeMetrics(s).monthly, 0)
+    const currentPassive = passiveSources.reduce((acc: number, s: any) => acc + calculateIncomeMetrics(s).monthly, 0)
 
     // Assumptions
     const passiveGrowthRate = 0.10 // 10% annual increase in passive income (reinvestment)
@@ -59,12 +60,12 @@ export function CrossoverChart({ incomeSources, monthlyExpense }: { incomeSource
                             </linearGradient>
                         </defs>
                         <XAxis dataKey="year" stroke="#475569" fontSize={12} />
-                        <YAxis stroke="#475569" fontSize={12} tickFormatter={(value) => `₹${value / 1000}k`} />
+                        <YAxis stroke="#475569" fontSize={12} tickFormatter={(value: any) => `₹${value / 1000}k`} />
                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}
                             itemStyle={{ color: '#e2e8f0' }}
-                            formatter={(value: number) => [`₹${value.toLocaleString()}`, '']}
+                            formatter={(value: any) => [`₹${(value || 0).toLocaleString()}`, '']}
                         />
                         <Legend />
                         <Area type="monotone" dataKey="Passive" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorPassive)" strokeWidth={3} />

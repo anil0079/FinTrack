@@ -6,32 +6,57 @@ import { revalidatePath } from 'next/cache'
 const prisma = new PrismaClient()
 
 export type ExpenseFormData = {
+    title?: string
     category: string
     amount: number
     description?: string
     date: string
+    isRecurring?: boolean
+    frequency?: string
+    recurringDay?: number
+    isLoan?: boolean
+    totalPrincipal?: number
+    remainingPrincipal?: number
+    interestRate?: number
+    tenureMonths?: number
+    isSIP?: boolean
+    assetType?: string
 }
 
-const CATEGORIES = ['Needs', 'Wants', 'Savings', 'Debt']
-
 export async function createExpense(data: ExpenseFormData) {
-    let user = await prisma.user.findFirst()
-    if (!user) {
-        // Fallback for dev if user somehow missing
-        user = await prisma.user.create({ data: { email: 'demo@example.com' } })
-    }
+    const user = await prisma.user.findFirst()
+    if (!user) return { success: false, error: 'User not found' }
 
     await prisma.expense.create({
         data: {
             userId: user.id,
+            title: data.title || data.category,
             category: data.category,
             amount: Number(data.amount),
             description: data.description,
             date: new Date(data.date),
+            isRecurring: !!data.isRecurring,
+            frequency: data.frequency,
+            recurringDay: data.recurringDay ? Number(data.recurringDay) : null,
+            isLoan: !!data.isLoan,
+            totalPrincipal: data.totalPrincipal ? Number(data.totalPrincipal) : null,
+            remainingPrincipal: data.remainingPrincipal ? Number(data.remainingPrincipal) : null,
+            interestRate: data.interestRate ? Number(data.interestRate) : null,
+            tenureMonths: data.tenureMonths ? Number(data.tenureMonths) : null,
+            isSIP: !!data.isSIP,
+            assetType: data.assetType
         }
     })
 
     revalidatePath('/budget')
+    revalidatePath('/expense')
+    return { success: true }
+}
+
+export async function deleteExpense(id: string) {
+    await prisma.expense.delete({ where: { id } })
+    revalidatePath('/budget')
+    revalidatePath('/expense')
     return { success: true }
 }
 
@@ -65,12 +90,6 @@ export async function getBudgetOverview() {
     })
 
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0)
-
-    // Group by 50/30/20 Rule mapping (Simplified)
-    // Needs: Rent, Food, Utilities
-    // Wants: Shopping, Entertainment
-    // Savings: Investments
-
     const breakdown = {
         Needs: expenses.filter(e => e.category === 'Needs').reduce((s, e) => s + e.amount, 0),
         Wants: expenses.filter(e => e.category === 'Wants').reduce((s, e) => s + e.amount, 0),

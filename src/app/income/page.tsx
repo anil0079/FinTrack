@@ -22,10 +22,11 @@ export default async function IncomePage() {
                 amountInvested: 0,
                 inHand: true,
                 payoutFrequency: 'Monthly',
+                payouts: [],
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 userId: 'demo'
-            },
+            } as any,
             {
                 id: 'demo-2',
                 item: 'Demo Dividends',
@@ -39,10 +40,11 @@ export default async function IncomePage() {
                 amountInvested: 1500000,
                 inHand: false,
                 payoutFrequency: 'Quarterly',
+                payouts: [],
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 userId: 'demo'
-            }
+            } as any
         ]
     }
 

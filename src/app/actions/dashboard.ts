@@ -2,6 +2,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import { auth } from '@/auth'
+import { calculateIncomeMetrics } from '@/lib/financials'
 
 const prisma = new PrismaClient()
 
@@ -19,41 +20,93 @@ export async function getDashboardData() {
 
 async function fetchDataForUser(userId: string) {
     const [incomeSources, expenses] = await Promise.all([
-        prisma.incomeSource.findMany({ where: { userId } }),
+        prisma.incomeSource.findMany({
+            where: { userId },
+            include: { payouts: true }
+        }),
         prisma.expense.findMany({ where: { userId } })
     ])
 
-    const totalMonthlyIncome = incomeSources.length > 0
-        ? incomeSources.reduce((acc, s) => acc + s.monthlyIncome, 0)
-        : 0 // Explicit 0 if empty
+    const calculatedIncomeMetrics = incomeSources.map(s => calculateIncomeMetrics(s))
+    const totalMonthlyIncome = calculatedIncomeMetrics.reduce((acc, m) => acc + m.monthly, 0)
 
     const now = new Date()
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    const currentMonthExpenses = expenses.filter(e => e.date >= firstDay)
-    const totalMonthlyExpense = currentMonthExpenses.length > 0
-        ? currentMonthExpenses.reduce((acc, e) => acc + e.amount, 0)
+    const monthlyExpenses = expenses.filter(e => e.date >= firstDay)
+    const totalMonthlyExpense = monthlyExpenses.length > 0
+        ? monthlyExpenses.reduce((acc, e) => acc + e.amount, 0)
         : 0
 
-    const savings = totalMonthlyIncome - totalMonthlyExpense
-    const savingsRate = totalMonthlyIncome > 0 ? (savings / totalMonthlyIncome) * 100 : 0
+    // 4. Savings
+    let savingsRate = 0
+    if (totalMonthlyIncome > 0) {
+        savingsRate = ((totalMonthlyIncome - totalMonthlyExpense) / totalMonthlyIncome) * 100
+    }
+
+    // 5. Upcoming Events (Next 30-60 days)
+    const upcomingEvents: any[] = []
+
+    // Helper to add event
+    const addEvent = (date: Date, title: string, amount: number, type: string, investedAmount: number = 0) => {
+        const now = new Date()
+        const diffTime = date.getTime() - now.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (diffDays >= 0 && diffDays <= 60) {
+            upcomingEvents.push({
+                date: date.toISOString(),
+                title,
+                amount,
+                investedAmount,
+                type,
+                daysUntil: diffDays
+            })
+        }
+    }
+
+    incomeSources.forEach(source => {
+        // Check Next Payout Date
+        if (source.nextPayoutDate) {
+            addEvent(new Date(source.nextPayoutDate), `${source.item} Payout`, source.monthlyIncome, 'Payout', source.amountInvested)
+        }
+
+        // Check Specific Payout Schedules
+        if (source.payouts && (source.payouts as any[]).length > 0) {
+            (source.payouts as any[]).forEach(p => {
+                if (p.date) {
+                    addEvent(new Date(p.date), `${source.item} ${p.type}`, p.amount, p.type, source.amountInvested)
+                }
+            })
+        }
+
+        // Check Maturity
+        if (source.investedUntil && (source.category === 'Bonds' || source.category === 'Stocks' || source.item.includes('FD'))) {
+            // User requested showing invested amount instead of current/maturity amount
+            addEvent(new Date(source.investedUntil), `${source.item} Maturity`, source.amountInvested, 'Maturity', source.amountInvested)
+        }
+    })
+
+    // Sort by date ascending
+    upcomingEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     return {
         incomeSources,
-        expenses,
+        monthlyExpenses,
         totalMonthlyIncome,
         totalMonthlyExpense,
-        savingsRate
+        savingsRate,
+        upcomingEvents: upcomingEvents.slice(0, 5) // Top 5
     }
 }
 
 function generateRandomData() {
     // Generate realistic demo scenario
     const incomeSources = [
-        { id: 'demo-1', item: 'Software Engineer', type: 'Active', monthlyIncome: 120000, category: 'Job' },
-        { id: 'demo-2', item: 'Dividend Stocks', type: 'Passive', monthlyIncome: 5000, category: 'Stocks' },
-        { id: 'demo-3', item: 'Rental Property', type: 'Passive', monthlyIncome: 25000, category: 'Real Estate' },
-        { id: 'demo-4', item: 'Tech Blog', type: 'Semi-Passive', monthlyIncome: 8000, category: 'Business' }
+        { id: 'demo-1', item: 'Software Engineer', type: 'Active', monthlyIncome: 120000, category: 'Job', amountInvested: 0, growthRate: 5 },
+        { id: 'demo-2', item: 'Dividend Stocks', type: 'Passive', monthlyIncome: 5000, category: 'Stocks', amountInvested: 1000000, growthRate: 12 },
+        { id: 'demo-3', item: 'Rental Property', type: 'Passive', monthlyIncome: 25000, category: 'Real Estate', amountInvested: 5000000, growthRate: 8 },
+        { id: 'demo-4', item: 'Tech Blog', type: 'Semi-Passive', monthlyIncome: 8000, category: 'Business', amountInvested: 50000, growthRate: 20 }
     ]
 
     const totalMonthlyIncome = 158000

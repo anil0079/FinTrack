@@ -1,17 +1,23 @@
+import { auth } from '@/auth'
 import { getDashboardData } from '@/app/actions/dashboard'
-import { CrossoverChart } from '@/components/dashboard/crossover-chart'
 import { Card } from '@/components/ui/core'
-import { Wallet, TrendingUp, PiggyBank, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Wallet, TrendingUp, ArrowDownRight, PiggyBank, ArrowUpRight } from 'lucide-react'
+import { CrossoverChart } from '@/components/dashboard/crossover-chart'
+import { UpcomingEvents } from '@/components/dashboard/upcoming-events'
+import { NetWorthCard } from '@/components/dashboard/net-worth-card'
+
+import { calculateIncomeMetrics } from '@/lib/financials'
 
 export default async function DashboardPage() {
-    const data = await getDashboardData()
+    const session = await auth()
+    const data: any = await getDashboardData()
 
-    const { totalMonthlyIncome, totalMonthlyExpense, savingsRate, incomeSources, expenses } = data
+    const { totalMonthlyIncome, totalMonthlyExpense, savingsRate, incomeSources, upcomingEvents, monthlyExpenses } = data
 
     // Passive Check
     const passiveIncome = incomeSources
         .filter((s: any) => s.type === 'Passive' || s.type === 'Semi-Passive')
-        .reduce((acc: number, s: any) => acc + s.monthlyIncome, 0)
+        .reduce((acc: number, s: any) => acc + calculateIncomeMetrics(s).monthly, 0)
 
     const freedomRatio = totalMonthlyExpense > 0 ? (passiveIncome / totalMonthlyExpense) * 100 : 0
 
@@ -71,21 +77,28 @@ export default async function DashboardPage() {
                     </Card>
                 </div>
 
-                {/* Charts Row */}
+                {/* Charts & Events Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Chart */}
                     <div className="lg:col-span-2">
                         <CrossoverChart incomeSources={incomeSources} monthlyExpense={totalMonthlyExpense} />
                     </div>
 
-                    <div className="space-y-6">
-                        <Card className="p-6 bg-slate-900 border-slate-800 h-full">
+                    {/* Right Column: Upcoming & Quick Actions */}
+                    <div className="space-y-6 flex flex-col h-full">
+                        {/* Upcoming Events */}
+                        <div className="flex-1">
+                            <UpcomingEvents events={upcomingEvents || []} />
+                        </div>
+
+                        <Card className="p-6 bg-slate-900 border-slate-800">
                             <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
                             <div className="space-y-3">
                                 <a href="/income" className="block p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-slate-700 transition-colors flex justify-between items-center group">
                                     <span className="text-sm font-medium text-slate-200">Add Income Source</span>
                                     <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400" />
                                 </a>
-                                <a href="/budget" className="block p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-slate-700 transition-colors flex justify-between items-center group">
+                                <a href="/expenses" className="block p-3 bg-slate-800/50 hover:bg-slate-800 rounded-lg border border-slate-700 transition-colors flex justify-between items-center group">
                                     <span className="text-sm font-medium text-slate-200">Log Expense</span>
                                     <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-orange-400" />
                                 </a>
@@ -96,6 +109,11 @@ export default async function DashboardPage() {
                             </div>
                         </Card>
                     </div>
+                </div>
+
+                {/* Net Worth Card */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <NetWorthCard incomeSources={incomeSources} expenses={monthlyExpenses || []} />
                 </div>
 
             </div>

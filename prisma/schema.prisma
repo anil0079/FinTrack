@@ -78,8 +78,33 @@ model IncomeSource {
   monthlyIncome    Float
   inHand           Boolean  @default(true)
   
+  // Advanced Fields
+  tdsDeducted      Boolean  @default(false)
+  tdsRate          Float    @default(0) // Percentage, e.g. 10.0
+  maturityAmount   Float?   // For FDs/Bonds
+  nextPayoutDate   DateTime?
+  
+  investmentDate   DateTime? // Start date of investment
+  recurringDay     Int?      // Day of month (1-31) for SIP/Salary
+  
+  payouts          PayoutSchedule[]
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model PayoutSchedule {
+  id              String       @id @default(uuid())
+  incomeSourceId  String
+  incomeSource    IncomeSource @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  amount          Float
+  type            String       // Principal, Interest, Salary, Bonus, Dividend
+  status          String       @default("Scheduled") // Scheduled, Paid, Overdue
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Expense {
@@ -93,6 +118,22 @@ model Expense {
   date        DateTime @default(now())
   description String?
   paymentMethod String? // GPay, CC, Cash
+  
+  // Recurring & Commitments
+  isRecurring Boolean  @default(false)
+  frequency   String?  // Monthly, Quarterly, Yearly
+  recurringDay Int?     // 1-31
+  
+  // Loan Specifics
+  isLoan      Boolean  @default(false)
+  totalPrincipal Float?
+  remainingPrincipal Float?
+  interestRate Float?
+  tenureMonths Int?
+  
+  // Investment Commitments (SIPs)
+  isSIP       Boolean  @default(false)
+  assetType   String?  // Stocks, Mutual Funds, etc.
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
